@@ -37,7 +37,7 @@ fn main() -> Result<()> {
         )
         .get_matches();
 
-    println!("Welcome to Aurora");
+    println!("Welcome to Aurora CLI");
 
     let selections = &["Option 1: Do something", "Option 2: Do something else"];
 
@@ -79,7 +79,7 @@ fn main() -> Result<()> {
                 _ => unreachable!(),
             }
         }
-        _ => unreachable!(), // We don't allow the user to input an option out of range
+        _ => unreachable!(),
     }
 
     Ok(())
