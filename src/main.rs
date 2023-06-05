@@ -1,86 +1,130 @@
-use clap::{App, Arg, SubCommand};
-use dialoguer::{theme::ColorfulTheme, Select};
+mod ascii_art;
+mod commands;
+
+// Standard library imports
 use std::io::Result;
+use std::process;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+// External crate imports
+use ctrlc::{self, set_handler};
+use dialoguer::{theme::ColorfulTheme, Confirm, Select};
+
+// Internal module imports
+use commands::*;
 
 fn main() -> Result<()> {
-    let matches = App::new("Aurora")
-        .version("1.0")
-        .author("Lance H. <lance.henderson@aurora.dev>")
-        .about("Interactive Aurora CLI")
-        .arg(
-            Arg::new("selection")
-                .short('s')
-                .long("selection")
-                .value_name("SELECTION")
-                .help("Selects a default option")
-                .takes_value(true),
-        )
-        .subcommand(
-            SubCommand::with_name("Option 1").about("Do something").arg(
-                Arg::with_name("subselection")
-                    .short('s')
-                    .long("subselection")
-                    .help("Selects a default sub option for Option 1")
-                    .takes_value(true),
-            ),
-        )
-        .subcommand(
-            SubCommand::with_name("Option 2")
-                .about("Do something else")
-                .arg(
-                    Arg::with_name("subselection")
-                        .short('s')
-                        .long("subselection")
-                        .help("Selects a default sub option for Option 2")
-                        .takes_value(true),
-                ),
-        )
-        .get_matches();
+    println!("{}", ascii_art::ASCII_ART);
 
-    println!("Welcome to Aurora CLI");
+    println!("Aurora CLI allows simple intuitive interaction with the Aurora EVM smart contract.");
+    println!();
 
-    let selections = &["Option 1: Do something", "Option 2: Do something else"];
-
-    let default_selection = matches
-        .value_of("selection")
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Please select an action")
-        .default(default_selection)
-        .items(&selections[..])
+    // Ask user to proceed or quit.
+    let proceed = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Would you like to proceed to choose from the commands?")
         .interact()?;
 
-    match selection {
-        0 => {
-            let subselections = &["Sub Option 1.1", "Sub Option 1.2"];
-            let subselection = Select::with_theme(&ColorfulTheme::default())
-                .with_prompt("Please select a sub action for Option 1")
-                .default(0)
-                .items(&subselections[..])
-                .interact()?;
-            match subselection {
-                0 => println!("You selected Sub Option 1.1"),
-                1 => println!("You selected Sub Option 1.2"),
-                _ => unreachable!(),
-            }
-        }
-        1 => {
-            let subselections = &["Sub Option 2.1", "Sub Option 2.2"];
-            let subselection = Select::with_theme(&ColorfulTheme::default())
-                .with_prompt("Please select a sub action for Option 2")
-                .default(0)
-                .items(&subselections[..])
-                .interact()?;
-            match subselection {
-                0 => println!("You selected Sub Option 2.1"),
-                1 => println!("You selected Sub Option 2.2"),
-                _ => unreachable!(),
-            }
-        }
-        _ => unreachable!(),
+    if !proceed {
+        println!("Thanks for using Aurora CLI. Have a nice day!");
+        return Ok(());
     }
+
+    let selections = &[
+        "CreateAccount",
+        "ViewAccount",
+        "DeployAurora",
+        "Init",
+        "GetChainId",
+        "GetNonce",
+        "GetBlockHash",
+        "GetCode",
+        "GetBalance",
+        "GetUpgradeIndex",
+        "GetVersion",
+        "GetOwner",
+        "SetOwner",
+        "GetBridgeProver",
+        "GetStorageAt",
+        "RegisterRelayer",
+        "PausePrecompiles",
+        "ResumePrecompiles",
+        "PausedPrecompiles",
+        "FactoryUpdate",
+        "FactorySetWnearAddress",
+        "FundXccSubAccount",
+        "StageUpgrade",
+        "DeployUpgrade",
+        "Deploy",
+        "ViewCall",
+        "Call",
+        "EncodeAddress",
+        "KeyPair",
+    ];
+
+    // Atomic boolean to handle graceful shutdown
+    let running = Arc::new(AtomicBool::new(true));
+
+    set_handler(move || {
+        println!("\nProcess terminated. Thanks for using Aurora CLI. Have a good day!");
+        process::exit(0);
+    })
+    .expect("Error setting Ctrl-C handler");
+
+    // Main loop
+    while running.load(Ordering::SeqCst) {
+        let selection = Select::with_theme(&ColorfulTheme::default())
+            .with_prompt("Please select a command")
+            .default(0)
+            .items(&selections[..])
+            .interact()?;
+
+        let command = match selections[selection] {
+            "CreateAccount" => create_account()?,
+            "ViewAccount" => view_account()?,
+            "DeployAurora" => deploy_aurora()?,
+            "Init" => commands::init()?,
+            "GetChainId" => commands::get_chain_id(),
+            "GetNonce" => commands::get_nonce()?,
+            "GetBlockHash" => commands::get_block_hash()?,
+            "GetCode" => commands::get_code()?,
+            "GetBalance" => commands::get_balance()?,
+            "GetUpgradeIndex" => commands::get_upgrade_index(),
+            "GetVersion" => commands::get_version(),
+            "GetOwner" => commands::get_owner(),
+            "SetOwner" => commands::set_owner()?,
+            "GetBridgeProver" => commands::get_bridge_prover(),
+            "GetStorageAt" => commands::get_storage_at()?,
+            "RegisterRelayer" => commands::register_relayer()?,
+            "PausePrecompiles" => commands::pause_precompiles()?,
+            "ResumePrecompiles" => commands::resume_precompiles()?,
+            "PausedPrecompiles" => commands::paused_precompiles(),
+            "FactoryUpdate" => commands::factory_update()?,
+            "FactorySetWnearAddress" => commands::factory_set_wnear_address()?,
+            "FundXccSubAccount" => commands::fund_xcc_sub_account()?,
+            "StageUpgrade" => commands::stage_upgrade()?,
+            "DeployUpgrade" => commands::deploy_upgrade(),
+            "Deploy" => commands::deploy()?,
+            "ViewCall" => commands::view_call()?,
+            "Call" => commands::call()?,
+            "EncodeAddress" => commands::encode_address()?,
+            "KeyPair" => commands::key_pair()?,
+            _ => unimplemented!(),
+        };
+
+        println!("You selected: {:?}", command);
+
+        // Prompt for next command or exit
+        let continue_running = Confirm::new()
+            .with_prompt("Do you want to choose another command?")
+            .interact()?;
+
+        if !continue_running {
+            break;
+        }
+    }
+
+    println!("Thanks for using Aurora CLI. Have a nice day!");
 
     Ok(())
 }
